@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Melon Sandbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --rind: #0f3d2a;
+    --rind-deep: #082619;
+    --flesh: #ff3d5a;
+    --flesh-deep: #c9163a;
+    --seed: #1a0d12;
+    --pith: #eafff0;
+    --font: "Baloo 2", "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #04140d; font-family: var(--font); }
+  body { display: grid; place-items: center; padding: 16px; }
+
+  /* The frame holds both the menu and the game */
+  .frame {
+    position: relative;
+    width: min(100%, 1100px);
+    aspect-ratio: 16 / 9;
+    border-radius: 22px;
+    overflow: hidden;
+    background: var(--rind-deep);
+    box-shadow: 0 0 0 2px #1f6b46, 0 30px 80px rgba(0, 0, 0, .55);
+  }
+  .frame:fullscreen,
+  .frame.pseudo-full {
+    width: 100%; height: 100%; aspect-ratio: auto; border-radius: 0;
+  }
+  .frame.pseudo-full { position: fixed; inset: 0; z-index: 9999; }
+
+  /* ---------- Menu ---------- */
+  .menu {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 24px;
+    background:
+      radial-gradient(60% 50% at 50% 42%, rgba(255, 61, 90, .22), transparent 70%),
+      repeating-linear-gradient(100deg, #0f3d2a 0 46px, #135236 46px 92px);
+    transition: opacity .35s ease, visibility .35s;
+  }
+  .menu::after { /* soft vignette */
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55));
+  }
+  .menu > * { position: relative; z-index: 1; }
+  .frame.playing .menu { opacity: 0; visibility: hidden; pointer-events: none; }
+
+  /* Glossy title */
+  h1 {
+    margin: 0;
+    font-weight: 800;
+    font-size: clamp(2.4rem, 9vw, 5.5rem);
+    line-height: 1;
+    letter-spacing: -.01em;
+    color: transparent;
+    background: linear-gradient(180deg, #fff 0%, #ffd3da 38%, var(--flesh) 62%, var(--flesh-deep) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    filter: drop-shadow(0 4px 0 var(--seed)) drop-shadow(0 12px 22px rgba(0, 0, 0, .5));
+  }
+  .tag { margin: 0; color: var(--pith); opacity: .85; font-weight: 600; font-size: clamp(.95rem, 2.4vw, 1.25rem); }
+
+  /* ---------- Shiny Play button ---------- */
+  .play {
+    position: relative; overflow: hidden; isolation: isolate;
+    margin-top: 10px;
+    padding: .35em 1.6em .3em;
+    font: 800 clamp(1.8rem, 6vw, 3rem)/1.1 var(--font);
+    color: #fff;
+    text-shadow: 0 2px 0 var(--flesh-deep), 0 4px 10px rgba(0, 0, 0, .35);
+    border: 0; border-radius: 999px; cursor: pointer;
+    background: linear-gradient(180deg, #ff8095 0%, var(--flesh) 45%, var(--flesh-deep) 100%);
+    box-shadow:
+      inset 0 3px 0 rgba(255, 255, 255, .55),
+      inset 0 -6px 0 rgba(0, 0, 0, .18),
+      0 8px 0 #8f0f2a,
+      0 18px 30px rgba(0, 0, 0, .5),
+      0 0 40px rgba(255, 61, 90, .45);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  /* glass highlight on the top half */
+  .play::before {
+    content: ""; position: absolute; z-index: -1; left: 6%; right: 6%; top: 5%; height: 44%;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, .05));
+  }
+  /* the shine sweep */
+  .play::after {
+    content: ""; position: absolute; z-index: 1; top: -20%; bottom: -20%; left: -60%; width: 40%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .85), transparent);
+    transform: skewX(-20deg);
+    animation: sweep 3.2s ease-in-out infinite;
+  }
+  @keyframes sweep {
+    0%, 55% { left: -60%; }
+    100%    { left: 130%; }
+  }
+  .play:hover { transform: translateY(-2px); }
+  .play:active {
+    transform: translateY(6px);
+    box-shadow:
+      inset 0 3px 0 rgba(255, 255, 255, .45),
+      inset 0 -3px 0 rgba(0, 0, 0, .18),
+      0 2px 0 #8f0f2a,
+      0 8px 14px rgba(0, 0, 0, .5),
+      0 0 30px rgba(255, 61, 90, .4);
+  }
+  .play:focus-visible, .bar button:focus-visible, .alt:focus-visible {
+    outline: 3px solid #fff; outline-offset: 4px;
+  }
+
+  .alt { color: var(--pith); opacity: .8; font-weight: 600; font-size: .95rem; text-underline-offset: 3px; }
+  .alt:hover { opacity: 1; }
+
+  /* ---------- Game layer ---------- */
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
+
+  .bar {
+    position: absolute; top: 10px; right: 10px; z-index: 5;
+    display: none; gap: 8px;
+  }
+  .frame.playing .bar { display: flex; }
+  .bar button {
+    font: 600 .95rem var(--font); color: #fff; cursor: pointer;
+    padding: .45em .95em; border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, .35);
+    background: rgba(8, 38, 25, .72);
+    backdrop-filter: blur(6px);
+    opacity: .55; transition: opacity .15s;
+  }
+  .bar button:hover, .bar button:focus-visible { opacity: 1; }
+
+  @media (max-width: 560px) {
+    .frame { aspect-ratio: 4 / 5; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .play::after { animation: none; }
+    .menu { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame" id="frame">
+  <div class="menu" id="menu">
+    <h1>Melon Sandbox</h1>
+    <p class="tag">Build it. Smash it. Splat it.</p>
+    <button class="play" id="play" type="button">Play</button>
+    <a class="alt" href="https://melonsandbox.com" target="_blank" rel="noopener">Open in a new tab</a>
+  </div>
+
+  <div class="bar" id="bar">
+    <button type="button" id="fs">Fullscreen</button>
+    <button type="button" id="exit">Menu</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  var GAME_URL = "https://melonsandbox.com";
+
+  var frame = document.getElementById("frame");
+  var playBtn = document.getElementById("play");
+  var fsBtn = document.getElementById("fs");
+  var exitBtn = document.getElementById("exit");
+  var iframe = null;
+
+  function isFullscreen() {
+    return document.fullscreenElement === frame || document.webkitFullscreenElement === frame;
+  }
+
+  function enterFullscreen() {
+    var req = frame.requestFullscreen || frame.webkitRequestFullscreen;
+    if (req) {
+      // Some browsers return a promise, some don't
+      try {
+        var p = req.call(frame);
+        if (p && p.catch) p.catch(function () { frame.classList.add("pseudo-full"); });
+      } catch (e) { frame.classList.add("pseudo-full"); }
+    } else {
+      // iOS Safari and others: fill the viewport instead
+      frame.classList.add("pseudo-full");
+    }
+  }
+
+  function leaveFullscreen() {
+    frame.classList.remove("pseudo-full");
+    var exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (isFullscreen() && exit) exit.call(document);
+  }
+
+  function play() {
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      iframe.src = GAME_URL;
+      iframe.title = "Melon Sandbox";
+      iframe.allow = "fullscreen; autoplay; gamepad; clipboard-write";
+      iframe.setAttribute("allowfullscreen", "");
+      frame.insertBefore(iframe, document.getElementById("bar"));
+    }
+    frame.classList.add("playing");
+    enterFullscreen(); // must run inside the click handler
+    iframe.focus();
+  }
+
+  function backToMenu() {
+    leaveFullscreen();
+    frame.classList.remove("playing");
+    if (iframe) { iframe.remove(); iframe = null; } // stops the game
+  }
+
+  playBtn.addEventListener("click", play);
+  exitBtn.addEventListener("click", backToMenu);
+  fsBtn.addEventListener("click", function () {
+    if (isFullscreen() || frame.classList.contains("pseudo-full")) leaveFullscreen();
+    else enterFullscreen();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && frame.classList.contains("pseudo-full")) leaveFullscreen();
+  });
+})();
+</script>
+</body>
+</html>
